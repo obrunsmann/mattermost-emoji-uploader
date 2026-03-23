@@ -1,5 +1,9 @@
 # mattermost_emoji_uploader
 
+![GitHub License](https://img.shields.io/github/license/obrunsmann/mattermost-emoji-uploader)
+![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/obrunsmann/mattermost-emoji-uploader)
+[![Release Binaries](https://github.com/obrunsmann/mattermost-emoji-uploader/actions/workflows/release.yml/badge.svg)](https://github.com/obrunsmann/mattermost-emoji-uploader/actions/workflows/release.yml)
+
 Reliable Dart CLI to upload custom emojis to Mattermost with:
 
 - resumable runs

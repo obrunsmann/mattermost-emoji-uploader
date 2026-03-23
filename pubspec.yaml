@@ -1,7 +1,6 @@
 name: mattermost_emoji_uploader
 description: Reliable CLI for uploading custom emojis to Mattermost servers.
-version: 1.0.0
-# repository: https://github.com/my_org/my_repo
+version: 0.1.0
 
 environment:
   sdk: ^3.11.3

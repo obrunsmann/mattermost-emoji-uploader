@@ -1,0 +1,154 @@
+name: Release Binaries
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to release (e.g. v1.2.3)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  APP_NAME: mmemoji
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            os: ubuntu-latest
+          - target: linux-arm64
+            os: ubuntu-latest
+          - target: macos-arm64
+            os: macos-latest
+          - target: macos-x64
+            os: macos-26-intel
+          - target: windows-x64
+            os: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1.7.1
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Compile binary (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p dist
+          output="dist/${APP_NAME}"
+          case "${{ matrix.target }}" in
+            linux-arm64)
+              dart compile exe \
+                --target-os=linux \
+                --target-arch=arm64 \
+                bin/mattermost_emoji_uploader.dart \
+                -o "${output}"
+              ;;
+            linux-x64)
+              dart compile exe \
+                --target-os=linux \
+                --target-arch=x64 \
+                bin/mattermost_emoji_uploader.dart \
+                -o "${output}"
+              ;;
+            *)
+              dart compile exe bin/mattermost_emoji_uploader.dart -o "${output}"
+              ;;
+          esac
+          chmod +x "${output}"
+
+      - name: Compile binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          dart compile exe bin/mattermost_emoji_uploader.dart -o dist/${env:APP_NAME}.exe
+
+      - name: Package artifact (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          version="${RELEASE_TAG#v}"
+          asset_name="${APP_NAME}_${version}_${{ matrix.target }}"
+          mkdir -p out
+          cp dist/${APP_NAME} out/${APP_NAME}
+          tar -czf "${asset_name}.tar.gz" -C out "${APP_NAME}"
+
+      - name: Package artifact (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = "${env:RELEASE_TAG}".TrimStart("v")
+          $asset = "${env:APP_NAME}_${version}_${{ matrix.target }}.zip"
+          Compress-Archive -Path dist/${env:APP_NAME}.exe -DestinationPath $asset -Force
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.target }}
+          path: |
+            *.tar.gz
+            *.zip
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          pattern: release-*
+          merge-multiple: true
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd artifacts
+          sha256sum *.tar.gz *.zip > SHA256SUMS.txt
+
+      - name: Create release if missing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          if ! gh release view "${RELEASE_TAG}" --repo "${GH_REPO}" >/dev/null 2>&1; then
+            gh release create "${RELEASE_TAG}" \
+              --repo "${GH_REPO}" \
+              --title "${RELEASE_TAG}" \
+              --generate-notes
+          fi
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          gh release upload "${RELEASE_TAG}" artifacts/* --repo "${GH_REPO}" --clobber
