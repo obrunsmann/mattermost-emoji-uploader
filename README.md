@@ -22,6 +22,7 @@ dart run bin/mattermost_emoji_uploader.dart login --server https://chat.example.
 dart run bin/mattermost_emoji_uploader.dart teams list
 dart run bin/mattermost_emoji_uploader.dart teams select --team my-team-id
 dart run bin/mattermost_emoji_uploader.dart upload --source brunsi.yaml --rate 4 --concurrency 2 --retries 6 --debug
+dart run bin/mattermost_emoji_uploader.dart clear --yes --rate 4 --retries 6 --debug
 ```
 
 ## Notes
@@ -29,3 +30,9 @@ dart run bin/mattermost_emoji_uploader.dart upload --source brunsi.yaml --rate 4
 - State DB: `.mmemoji/state.db`
 - Logs: `.mmemoji/logs/run-<id>.jsonl`
 - Report: `.mmemoji/reports/run-<id>.json`
+- Clear logs: `.mmemoji/logs/clear-<timestamp>.jsonl`
+
+## Destructive command
+
+`clear` deletes all custom emojis from the server.
+Use `--dry-run` to preview and `--yes` to execute.

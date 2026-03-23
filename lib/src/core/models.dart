@@ -84,6 +84,18 @@ class TeamInfo {
   final String displayName;
 }
 
+class CustomEmoji {
+  const CustomEmoji({
+    required this.id,
+    required this.name,
+    required this.creatorId,
+  });
+
+  final String id;
+  final String name;
+  final String creatorId;
+}
+
 class Profile {
   const Profile({
     required this.server,

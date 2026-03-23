@@ -133,6 +133,49 @@ class MattermostClient {
     return response.statusCode == 200;
   }
 
+  Future<List<CustomEmoji>> listCustomEmojisPage({
+    required int page,
+    required int perPage,
+  }) async {
+    final requestUri = _baseUri
+        .resolve('/api/v4/emoji')
+        .replace(
+          queryParameters: <String, String>{
+            'page': '$page',
+            'per_page': '$perPage',
+            'sort': 'name',
+          },
+        );
+    final request = http.Request('GET', requestUri);
+    final response = await _send(request, acceptedStatusCodes: <int>{200});
+
+    final body = jsonDecode(response.body);
+    if (body is! List<dynamic>) {
+      throw const FormatException('Emoji response is not a list.');
+    }
+
+    return body
+        .whereType<Map<String, dynamic>>()
+        .map(
+          (raw) => CustomEmoji(
+            id: raw['id'] as String? ?? '',
+            name: raw['name'] as String? ?? '',
+            creatorId: raw['creator_id'] as String? ?? '',
+          ),
+        )
+        .where((emoji) => emoji.id.isNotEmpty && emoji.name.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  Future<bool> deleteCustomEmoji(String emojiId) async {
+    final request = http.Request(
+      'DELETE',
+      _baseUri.resolve('/api/v4/emoji/${Uri.encodeComponent(emojiId)}'),
+    );
+    final response = await _send(request, acceptedStatusCodes: <int>{200, 404});
+    return response.statusCode == 200;
+  }
+
   Future<void> uploadEmoji({
     required String name,
     required String creatorId,
