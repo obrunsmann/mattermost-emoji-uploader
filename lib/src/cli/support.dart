@@ -6,12 +6,31 @@ import 'package:path/path.dart' as p;
 String appRootPath() => p.join(Directory.current.path, '.mmemoji');
 
 Future<String> readPasswordFromStdinPrompt() async {
-  stdout.write('Password: ');
-  final password = stdin.readLineSync();
-  if (password == null || password.isEmpty) {
-    throw const FormatException('Password must not be empty.');
+  if (!stdin.hasTerminal) {
+    throw const FormatException(
+      'No interactive terminal available. Use --password-stdin instead.',
+    );
   }
-  return password;
+
+  stdout.write('Password: ');
+  final previousEchoMode = stdin.echoMode;
+  final previousLineMode = stdin.lineMode;
+
+  try {
+    stdin.echoMode = false;
+    stdin.lineMode = true;
+
+    final password = stdin.readLineSync();
+    stdout.writeln();
+
+    if (password == null || password.isEmpty) {
+      throw const FormatException('Password must not be empty.');
+    }
+    return password;
+  } finally {
+    stdin.echoMode = previousEchoMode;
+    stdin.lineMode = previousLineMode;
+  }
 }
 
 Future<String> readPasswordFromStdinPipe() async {
